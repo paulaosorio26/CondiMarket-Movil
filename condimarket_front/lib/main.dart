@@ -1,13 +1,31 @@
+// main.dart
 import 'package:flutter/material.dart';
-//import 'screens/login_screen.dart';       // Importa el login
-import 'screens/catalogo_screen.dart';    // Importa el catálogo si luego lo usarás
+import 'package:flutter/services.dart';
+import 'screens/catalogo_screen.dart';
 
 void main() {
+  // Aseguramos que Flutter esté inicializado
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Configuramos la orientación de la app (opcional)
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  // Configuramos la barra de estado (opcional)
+  SystemChrome.setSystemUIOverlayStyle(
+    SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ),
+  );
+
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -15,9 +33,35 @@ class MyApp extends StatelessWidget {
       title: 'CondiMarket',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.green,
+        primaryColor: Colors.white,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.orange,
+          primary: Colors.orange,
+        ),
+        scaffoldBackgroundColor: Colors.white,
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+          iconTheme: IconThemeData(color: Colors.black),
+          titleTextStyle: TextStyle(
+            color: Colors.black,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.orange,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        fontFamily: 'Roboto',
       ),
-//      home: const LoginScreen(),
+      home: CatalogoScreen(),
     );
   }
 }
