@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/user_model.dart';
 
 class AuthService {
   // URL base del backend
@@ -19,31 +18,37 @@ class AuthService {
     _usarDatosMock = usarDatosMock;
   }
 
-  // Método para iniciar sesión
-  Future<Map<String, dynamic>> iniciarSesion({
+  // MÉTODO PARA REGISTRAR USUARIO
+  Future<Map<String, dynamic>> registrarUsuario({
+    required String nombre,
     required String email,
     required String password,
+    String? telefono,
+    String? direccion,
   }) async {
-    // Si estamos usando datos mock, simulamos el inicio de sesión
+    // Si estamos usando datos mock, simulamos el registro
     if (_usarDatosMock) {
-      return _simularInicioSesion(email, password);
+      return _simularRegistro(nombre, email, password, telefono, direccion);
     }
 
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/login'),
+        Uri.parse('$baseUrl/api/auth/register'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
+          'nombre': nombre,
           'email': email,
           'password': password,
+          'telefono': telefono,
+          'direccion': direccion,
         }),
       ).timeout(Duration(seconds: 15));
 
       // Decodificar la respuesta
       final Map<String, dynamic> responseData = json.decode(response.body);
 
-      if (response.statusCode == 200) {
-        // Login exitoso
+      if (response.statusCode == 201) {
+        // Registro exitoso
         String token = responseData['token'] ?? '';
 
         // Guardar el token en SharedPreferences
@@ -54,28 +59,77 @@ class AuthService {
 
         return {
           'success': true,
-          'message': 'Inicio de sesión exitoso',
+          'message': 'Registro exitoso',
           'token': token,
           'user': responseData['user'],
         };
       } else {
-        // Error en el login
+        // Error en el registro
         return {
           'success': false,
-          'message': responseData['message'] ?? 'Error en el inicio de sesión',
+          'message': responseData['message'] ?? 'Error en el registro',
         };
       }
     } catch (e) {
       print('Error al conectar con el backend: $e. Usando datos quemados...');
       // Si falla la conexión con el backend, intentamos con datos mock
-      return _simularInicioSesion(email, password);
+      return _simularRegistro(nombre, email, password, telefono, direccion);
     }
   }
 
-  // Método para simular inicio de sesión con datos quemados
-  Map<String, dynamic> _simularInicioSesion(String email, String password) {
-    // Datos de usuario de prueba
-    final mockUsuarios = [
+  // MÉTODO PARA SIMULAR REGISTRO CON DATOS QUEMADOS
+  Map<String, dynamic> _simularRegistro(
+      String nombre,
+      String email,
+      String password,
+      String? telefono,
+      String? direccion,
+      ) {
+    // Verificar si el email ya está registrado en los datos mock
+    final mockUsuarios = _obtenerUsuariosMock();
+
+    // Verificar si el email ya existe
+    final usuarioExistente = mockUsuarios.any((u) => u['email'] == email);
+
+    if (usuarioExistente) {
+      return {
+        'success': false,
+        'message': 'El correo electrónico ya está registrado',
+      };
+    }
+
+    // Crear un nuevo ID para el usuario
+    final nuevoId = 'mock-user-${DateTime.now().millisecondsSinceEpoch}';
+
+    // Crear datos del nuevo usuario
+    final nuevoUsuario = {
+      'id': nuevoId,
+      'nombre': nombre,
+      'email': email,
+      'telefono': telefono,
+      'direccion': direccion,
+      'rol': 'cliente', // Por defecto, es cliente
+      'createdAt': DateTime.now().toIso8601String(),
+    };
+
+    // Generar un token falso
+    final mockToken = 'mock-jwt-token-${DateTime.now().millisecondsSinceEpoch}';
+
+    // Guardar datos en SharedPreferences
+    _guardarToken(mockToken);
+    _guardarUsuario(nuevoUsuario);
+
+    return {
+      'success': true,
+      'message': 'Registro exitoso (modo offline)',
+      'token': mockToken,
+      'user': nuevoUsuario,
+    };
+  }
+
+  // OBTENER USUARIOS MOCK
+  List<Map<String, dynamic>> _obtenerUsuariosMock() {
+    return [
       {
         'email': 'usuario@ejemplo.com',
         'password': '123456',
@@ -103,126 +157,18 @@ class AuthService {
         }
       },
     ];
-
-    // Buscar usuario con las credenciales proporcionadas
-    final usuario = mockUsuarios.firstWhere(
-          (u) => u['email'] == email && u['password'] == password,
-      orElse: () => {
-        'email': '',
-        'password': '',
-        'user': {}, // o cualquier objeto no nulo
-      },
-    );
-
-
-    if (usuario['user'] != null) {
-      // Generar un token falso
-      final mockToken = 'mock-jwt-token-${DateTime.now().millisecondsSinceEpoch}';
-
-      // Guardar datos en SharedPreferences
-      _guardarToken(mockToken);
-      _guardarUsuario(usuario['user'] as Map<String, dynamic>);
-
-      return {
-        'success': true,
-        'message': 'Inicio de sesión exitoso (modo offline)',
-        'token': mockToken,
-        'user': usuario['user'],
-      };
-    } else {
-      return {
-        'success': false,
-        'message': 'Correo electrónico o contraseña incorrectos',
-      };
-    }
   }
 
-  // Verificar si hay una sesión activa
-  Future<bool> estaAutenticado() async {
-    final token = await _obtenerToken();
-    return token != null && token.isNotEmpty;
-  }
-
-  // Obtener el usuario actual
-  Future<Usuario?> obtenerUsuarioActual() async {
-    try {
-      // Primero verificamos si hay un token guardado
-      final token = await _obtenerToken();
-      if (token == null || token.isEmpty) {
-        return null;
-      }
-
-      // Intentamos obtener el usuario guardado localmente
-      final userData = await _obtenerUsuario();
-      if (userData != null) {
-        return Usuario.fromJson(userData);
-      }
-
-      // Si estamos en modo mock o no hay conexión, devolvemos null
-      if (_usarDatosMock) {
-        return null;
-      }
-
-      // Si no hay datos locales, consultamos al backend
-      try {
-        final response = await http.get(
-          Uri.parse('$baseUrl/api/auth/me'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-        ).timeout(Duration(seconds: 10));
-
-        if (response.statusCode == 200) {
-          final Map<String, dynamic> responseData = json.decode(response.body);
-          // Guardamos los datos para la próxima vez
-          await _guardarUsuario(responseData['user']);
-          return Usuario.fromJson(responseData['user']);
-        } else {
-          return null;
-        }
-      } catch (e) {
-        print('Error al conectar con el backend: $e');
-        return null;
-      }
-    } catch (e) {
-      print('Error al obtener usuario actual: $e');
-      return null;
-    }
-  }
-
-  // Cerrar sesión
-  Future<void> cerrarSesion() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(TOKEN_KEY);
-    await prefs.remove(USER_KEY);
-  }
-
+  // MÉTODOS AUXILIARES PARA MANEJAR TOKENS Y USUARIO
   // Método para guardar el token en SharedPreferences
   Future<void> _guardarToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(TOKEN_KEY, token);
   }
 
-  // Método para obtener el token de SharedPreferences
-  Future<String?> _obtenerToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(TOKEN_KEY);
-  }
-
   // Método para guardar los datos del usuario en SharedPreferences
   Future<void> _guardarUsuario(Map<String, dynamic> userData) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(USER_KEY, json.encode(userData));
-  }
-
-  // Método para obtener los datos del usuario de SharedPreferences
-  Future<Map<String, dynamic>?> _obtenerUsuario() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userData = prefs.getString(USER_KEY);
-    if (userData != null) {
-      return json.decode(userData) as Map<String, dynamic>;
-    }
-    return null;
   }
 }
