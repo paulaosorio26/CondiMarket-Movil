@@ -5,11 +5,11 @@ void main() {
   // Asegurarse de que la inicialización de Flutter se complete
   WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(MyApp());
+  runApp(RegisterMain());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+class RegisterMain extends StatelessWidget {
+  const RegisterMain({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

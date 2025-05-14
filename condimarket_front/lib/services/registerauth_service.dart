@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-class AuthService {
+class RegisterAuthService {
   // URL base del backend
   final String baseUrl = 'https://condimarket-backend.onrender.com';
 
@@ -14,7 +14,7 @@ class AuthService {
   bool _usarDatosMock = false;
 
   // Constructor con opción para usar datos quemados
-  AuthService({bool usarDatosMock = false}) {
+  RegisterAuthService({bool usarDatosMock = false}) {
     _usarDatosMock = usarDatosMock;
   }
 

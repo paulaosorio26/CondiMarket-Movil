@@ -1,7 +1,7 @@
 // register_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import '../services/auth_service.dart';
+import '../services/registerauth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -26,7 +26,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _aceptaTerminos = false;
 
   // Instancia del servicio de autenticación
-  final AuthService _authService = AuthService(usarDatosMock: true);
+  final RegisterAuthService _RegisterAuthService = RegisterAuthService(usarDatosMock: true);
 
   @override
   void dispose() {
@@ -97,7 +97,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      final result = await _authService.registrarUsuario(
+      final result = await _RegisterAuthService.registrarUsuario(
         nombre: _nombreController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
