@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'screens/register_screen.dart';
 
 void main() {
-  // Asegurarse de que la inicialización de Flutter se complete
+  //Asegurar backend
+  // Aseguramos que Flutter esté inicializado
   WidgetsFlutterBinding.ensureInitialized();
 
   runApp(MyApp());
