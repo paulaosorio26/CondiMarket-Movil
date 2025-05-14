@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'screens/catalogo_screen.dart';
 
 void main() {
+  //Asegurar backend
   // Aseguramos que Flutter esté inicializado
   WidgetsFlutterBinding.ensureInitialized();
 
