@@ -34,7 +34,8 @@ class _LoginScreenState extends State<LoginScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop();
+              Navigator.of(context).pop(); // Cierra la alerta
+              Navigator.pushReplacementNamed(context, '/catalogo'); // Navega al catálogo
             },
             child: Text('Aceptar'),
           ),
@@ -42,6 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
