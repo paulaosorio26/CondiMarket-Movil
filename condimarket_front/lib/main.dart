@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+// Pantallas
 import 'screens/login_screen.dart';
+import 'screens/register_screen.dart';
 import 'screens/catalogo_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Fijar orientación (opcional)
+  // Orientación vertical fija
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // Barra de estado transparente y con iconos oscuros (opcional)
+  // Barra de estado transparente con iconos oscuros
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -37,6 +40,8 @@ class MyApp extends StatelessWidget {
       scaffoldBackgroundColor: Colors.white,
       visualDensity: VisualDensity.adaptivePlatformDensity,
       fontFamily: 'Roboto',
+
+      // AppBar
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -48,6 +53,8 @@ class MyApp extends StatelessWidget {
           fontWeight: FontWeight.bold,
         ),
       ),
+
+      // Botones elevados
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.orange,
@@ -57,18 +64,37 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
+
+      // TextButton (enlaces, etc.)
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: Colors.blue[700],
+        ),
+      ),
+
+      // Estilo de campos de texto
+      inputDecorationTheme: InputDecorationTheme(
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        filled: true,
+        fillColor: Colors.grey[50],
+      ),
     );
 
     return MaterialApp(
       title: 'CondiMarket',
       debugShowCheckedModeBanner: false,
       theme: baseTheme,
-      // Arrancamos en la pantalla de login
-      initialRoute: '/login',
-      routes: {
-        '/login': (_) => const LoginScreen(),
-        '/catalogo': (_) => CatalogoScreen(),
 
+      // Ruta inicial
+      initialRoute: '/register',
+
+      // Rutas
+      routes: {
+        '/register': (_)  => const RegisterScreen(),
+        '/login': (_)     => const LoginScreen(),
+        '/catalogo': (_)  => CatalogoScreen(),
       },
     );
   }
