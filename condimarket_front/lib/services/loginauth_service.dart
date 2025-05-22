@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 
 class LoginAuthService {
-  // URL base del backend
+  // URL base del backend 1
   final String baseUrl = 'https://condimarket-backend.onrender.com';
 
   // Claves para SharedPreferences

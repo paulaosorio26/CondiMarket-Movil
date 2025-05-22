@@ -63,7 +63,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              // Cerrar el diálogo
+              // Cerrar el diálogo 1
               Navigator.pushReplacementNamed(context, '/login');
             },
             child: Text('Continuar'),

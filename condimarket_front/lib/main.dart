@@ -1,5 +1,7 @@
+// main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 
 // Pantallas
 import 'screens/login_screen.dart';
@@ -14,6 +16,7 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+
 
   // Barra de estado transparente con iconos oscuros
   SystemChrome.setSystemUIOverlayStyle(

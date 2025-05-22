@@ -10,7 +10,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // Método para mostrar información del usuario después del login exitoso
+  //Metodo para mostrar información del usuario después del login exitoso 1
   void _mostrarInformacionUsuario(Map<String, dynamic> userData) {
     showDialog(
       context: context,
