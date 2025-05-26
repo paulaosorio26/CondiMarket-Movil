@@ -1,12 +1,15 @@
-// main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
+// Servicios
+import 'services/cart_service.dart';
 
 // Pantallas
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/catalogo_screen.dart';
+import 'screens/cart_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,7 +19,6 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-
 
   // Barra de estado transparente con iconos oscuros
   SystemChrome.setSystemUIOverlayStyle(
@@ -85,20 +87,23 @@ class MyApp extends StatelessWidget {
       ),
     );
 
-    return MaterialApp(
-      title: 'CondiMarket',
-      debugShowCheckedModeBanner: false,
-      theme: baseTheme,
-
-      // Ruta inicial
-      initialRoute: '/register',
-
-      // Rutas
-      routes: {
-        '/register': (_)  => const RegisterScreen(),
-        '/login': (_)     => const LoginScreen(),
-        '/catalogo': (_)  => CatalogoScreen(),
-      },
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CartService()),
+        // Otros servicios si los necesitas
+      ],
+      child: MaterialApp(
+        title: 'CondiMarket',
+        debugShowCheckedModeBanner: false,
+        theme: baseTheme,
+        initialRoute: '/register',
+        routes: {
+          '/register': (_) => const RegisterScreen(),
+          '/login': (_) => const LoginScreen(),
+          '/catalogo': (_) => CatalogoScreen(), // Aquí deberías integrar carrito
+          '/cart': (context) => CartScreen(),    // Ruta para el carrito
+        },
+      ),
     );
   }
 }
