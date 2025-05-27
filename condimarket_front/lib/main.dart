@@ -4,12 +4,14 @@ import 'package:provider/provider.dart';
 
 // Servicios
 import 'services/cart_service.dart';
+import 'services/payment_service.dart';
 
 // Pantallas
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/catalogo_screen.dart';
 import 'screens/cart_screen.dart';
+import 'screens/payment_screen.dart'; // Nueva pantalla de pago
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -90,18 +92,36 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => CartService()),
-        // Otros servicios si los necesitas
+        Provider(create: (_) => PaymentService()),
       ],
       child: MaterialApp(
         title: 'CondiMarket',
         debugShowCheckedModeBanner: false,
         theme: baseTheme,
         initialRoute: '/register',
-        routes: {
-          '/register': (_) => const RegisterScreen(),
-          '/login': (_) => const LoginScreen(),
-          '/catalogo': (_) => CatalogoScreen(), // Aquí deberías integrar carrito
-          '/cart': (context) => CartScreen(),    // Ruta para el carrito
+        onGenerateRoute: (settings) {
+          if (settings.name == '/payment') {
+            final args = settings.arguments as Map<String, dynamic>;
+            return MaterialPageRoute(
+              builder: (_) => PaymentScreen(
+                totalAmount: args['totalAmount'],
+                cartItems: args['cartItems'],
+              ),
+            );
+          }
+
+          switch (settings.name) {
+            case '/register':
+              return MaterialPageRoute(builder: (_) => const RegisterScreen());
+            case '/login':
+              return MaterialPageRoute(builder: (_) => const LoginScreen());
+            case '/catalogo':
+              return MaterialPageRoute(builder: (_) => CatalogoScreen());
+            case '/cart':
+              return MaterialPageRoute(builder: (_) => const CartScreen());
+            default:
+              return MaterialPageRoute(builder: (_) => const RegisterScreen());
+          }
         },
       ),
     );

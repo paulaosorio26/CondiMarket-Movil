@@ -390,12 +390,16 @@ class _CartSummary extends StatelessWidget {
               onPressed: () {
                 Navigator.pop(context);
                 // Aquí implementarías la navegación a la pantalla de pago
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Redirigiendo al proceso de pago...'),
-                    backgroundColor: Colors.orange,
-                  ),
+                final cartService = Provider.of<CartService>(context, listen: false);
+                Navigator.pushNamed(
+                  context,
+                  '/payment',
+                  arguments: {
+                    'totalAmount': cartService.total,
+                    'cartItems': cartService.items,
+                  },
                 );
+
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange[600],
