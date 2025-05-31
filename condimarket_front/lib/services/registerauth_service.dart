@@ -3,172 +3,211 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class RegisterAuthService {
-  // URL base del backend
   final String baseUrl = 'https://condimarket-backend.onrender.com';
-
-  // Clave para almacenar el token en SharedPreferences
-  static const String TOKEN_KEY = 'auth_token';
   static const String USER_KEY = 'user_data';
 
-  // Bandera para usar datos mock (quemados) en caso de que el backend no esté disponible
   bool _usarDatosMock = false;
 
-  // Constructor con opción para usar datos quemados
   RegisterAuthService({bool usarDatosMock = false}) {
     _usarDatosMock = usarDatosMock;
+    print('🔧 RegisterAuthService inicializado - usarDatosMock: $_usarDatosMock');
   }
 
-  // MÉTODO PARA REGISTRAR USUARIO
   Future<Map<String, dynamic>> registrarUsuario({
     required String nombre,
     required String email,
     required String password,
-    String? telefono,
-    String? direccion,
+    // String? telefono,
+    // String? direccion,
   }) async {
-    // Si estamos usando datos mock, simulamos el registro
+    print('📝 Iniciando registro de usuario...');
+    print('   - Nombre: $nombre');
+    print('   - Email: $email');
+    print('   - Usar datos mock: $_usarDatosMock');
+
     if (_usarDatosMock) {
-      return _simularRegistro(nombre, email, password, telefono, direccion);
+      print('🎭 Usando datos mock...');
+      return await _simularRegistro(nombre, email, password);
     }
 
+    print('🌐 Intentando conectar con el backend...');
+    print('   - URL: $baseUrl/api/users');
+
     try {
+      final requestBody = {
+        'name': nombre,
+        'email': email,
+        'password': password,
+        // 'telefono': telefono,
+        // 'direccion': direccion,
+      };
+
+      print('📤 Enviando datos al backend:');
+      print('   - Body: ${jsonEncode(requestBody)}');
+
       final response = await http.post(
-        Uri.parse('$baseUrl/api/auth/register'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'nombre': nombre,
-          'email': email,
-          'password': password,
-          'telefono': telefono,
-          'direccion': direccion,
-        }),
-      ).timeout(Duration(seconds: 15));
+        Uri.parse('$baseUrl/api/users'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode(requestBody),
+      ).timeout(const Duration(seconds: 15));
 
-      // Decodificar la respuesta
-      final Map<String, dynamic> responseData = json.decode(response.body);
+      print('📥 Respuesta del backend:');
+      print('   - Status Code: ${response.statusCode}');
+      print('   - Headers: ${response.headers}');
+      print('   - Body: ${response.body}');
 
-      if (response.statusCode == 201) {
-        // Registro exitoso
-        String token = responseData['token'] ?? '';
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('✅ Registro exitoso en el backend');
 
-        // Guardar el token en SharedPreferences
-        if (token.isNotEmpty) {
-          await _guardarToken(token);
-          await _guardarUsuario(responseData['user']);
+        final Map<String, dynamic> userDto = jsonDecode(utf8.decode(response.bodyBytes));
+        print('   - Datos recibidos: $userDto');
+
+        // Convertir el ID a String si viene como número
+        if (userDto['id'] is int || userDto['id'] is double) {
+          userDto['id'] = userDto['id'].toString();
         }
+
+        await guardarUsuario(userDto);
 
         return {
           'success': true,
           'message': 'Registro exitoso',
-          'token': token,
-          'user': responseData['user'],
+          'user': userDto,
         };
       } else {
-        // Error en el registro
+        print('❌ Error en el backend - Status: ${response.statusCode}');
+
+        Map<String, dynamic> errorResponse;
+        try {
+          errorResponse = jsonDecode(response.body);
+        } catch (e) {
+          print('   - Error parseando respuesta de error: $e');
+          errorResponse = {'message': 'Error desconocido del servidor'};
+        }
+
         return {
           'success': false,
-          'message': responseData['message'] ?? 'Error en el registro',
+          'message': errorResponse['message'] ?? 'Error en el registro - Status: ${response.statusCode}',
         };
       }
     } catch (e) {
-      print('Error al conectar con el backend: $e. Usando datos quemados...');
-      // Si falla la conexión con el backend, intentamos con datos mock
-      return _simularRegistro(nombre, email, password, telefono, direccion);
+      print('💥 Excepción al conectar con el backend: $e');
+      print('🎭 Fallback a datos mock...');
+      return await _simularRegistro(nombre, email, password);
     }
   }
 
-  // MÉTODO PARA SIMULAR REGISTRO CON DATOS QUEMADOS
-  Map<String, dynamic> _simularRegistro(
-      String nombre,
-      String email,
-      String password,
-      String? telefono,
-      String? direccion,
-      ) {
-    // Verificar si el email ya está registrado en los datos mock
-    final mockUsuarios = _obtenerUsuariosMock();
+  Future<Map<String, dynamic>> _simularRegistro(
+      String nombre, String email, String password) async {
+    print('🎭 Ejecutando simulación de registro...');
 
-    // Verificar si el email ya existe
-    final usuarioExistente = mockUsuarios.any((u) => u['email'] == email);
+    final mockUsuarios = obtenerUsuariosMock();
+    final existe = mockUsuarios.any((u) => u['email'] == email);
 
-    if (usuarioExistente) {
+    if (existe) {
+      print('   - Email ya existe en mock');
       return {
         'success': false,
-        'message': 'El correo electrónico ya está registrado',
+        'message': 'El correo electrónico ya está registrado (offline)',
       };
     }
 
-    // Crear un nuevo ID para el usuario
-    final nuevoId = 'mock-user-${DateTime.now().millisecondsSinceEpoch}';
-
-    // Crear datos del nuevo usuario
     final nuevoUsuario = {
-      'id': nuevoId,
-      'nombre': nombre,
+      'id': 'mock-${DateTime.now().millisecondsSinceEpoch}',
+      'name': nombre,
       'email': email,
-      'telefono': telefono,
-      'direccion': direccion,
-      'rol': 'cliente', // Por defecto, es cliente
       'createdAt': DateTime.now().toIso8601String(),
+      // 'telefono': telefono,
+      // 'direccion': direccion,
     };
 
-    // Generar un token falso
-    final mockToken = 'mock-jwt-token-${DateTime.now().millisecondsSinceEpoch}';
-
-    // Guardar datos en SharedPreferences
-    _guardarToken(mockToken);
-    _guardarUsuario(nuevoUsuario);
+    print('   - Usuario mock creado: $nuevoUsuario');
+    await guardarUsuario(nuevoUsuario);
 
     return {
       'success': true,
-      'message': 'Registro exitoso (modo offline)',
-      'token': mockToken,
+      'message': 'Registro exitoso (offline)',
       'user': nuevoUsuario,
     };
   }
 
-  // OBTENER USUARIOS MOCK
-  List<Map<String, dynamic>> _obtenerUsuariosMock() {
-    return [
-      {
+  List<Map<String, dynamic>> obtenerUsuariosMock() => [
+    {
+      'email': 'usuario@ejemplo.com',
+      'password': '123456',
+      'user': {
+        'id': 'mock-001',
+        'name': 'Usuario de Prueba',
         'email': 'usuario@ejemplo.com',
-        'password': '123456',
-        'user': {
-          'id': 'mock-user-001',
-          'nombre': 'Usuario de Prueba',
-          'email': 'usuario@ejemplo.com',
-          'telefono': '123456789',
-          'direccion': 'Calle Principal 123',
-          'rol': 'cliente',
-          'createdAt': DateTime.now().toIso8601String(),
-        }
-      },
-      {
-        'email': 'admin@ejemplo.com',
-        'password': 'admin123',
-        'user': {
-          'id': 'mock-admin-001',
-          'nombre': 'Administrador',
-          'email': 'admin@ejemplo.com',
-          'telefono': '987654321',
-          'direccion': 'Avenida Central 456',
-          'rol': 'admin',
-          'createdAt': DateTime.now().toIso8601String(),
-        }
-      },
-    ];
+        'createdAt': DateTime.now().toIso8601String(),
+      }
+    },
+  ];
+
+  Future<void> guardarUsuario(Map<String, dynamic> userData) async {
+    try {
+      print('💾 Guardando usuario en SharedPreferences...');
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(USER_KEY, jsonEncode(userData));
+      print('   ✅ Usuario guardado exitosamente: ${userData['name']}');
+    } catch (e) {
+      print('   ❌ Error al guardar usuario: $e');
+    }
   }
 
-  // MÉTODOS AUXILIARES PARA MANEJAR TOKENS Y USUARIO
-  // Método para guardar el token en SharedPreferences
-  Future<void> _guardarToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(TOKEN_KEY, token);
+  Future<Map<String, dynamic>?> cargarUsuario() async {
+    try {
+      print('📖 Cargando usuario desde SharedPreferences...');
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(USER_KEY);
+
+      if (raw == null) {
+        print('   - No hay usuario guardado');
+        return null;
+      }
+
+      final usuario = jsonDecode(raw);
+      print('   - Usuario cargado: $usuario');
+      return usuario;
+    } catch (e) {
+      print('   ❌ Error al cargar usuario: $e');
+      return null;
+    }
   }
 
-  // Método para guardar los datos del usuario en SharedPreferences
-  Future<void> _guardarUsuario(Map<String, dynamic> userData) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(USER_KEY, json.encode(userData));
+  Future<bool> tieneUsuarioGuardado() async {
+    final usuario = await cargarUsuario();
+    return usuario != null;
+  }
+
+  Future<void> limpiarUsuario() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(USER_KEY);
+      print('🗑️ Datos de usuario eliminados');
+    } catch (e) {
+      print('❌ Error al eliminar datos de usuario: $e');
+    }
+  }
+
+  // Método para verificar la conectividad con el backend
+  Future<bool> verificarConexionBackend() async {
+    try {
+      print('🔍 Verificando conexión con el backend...');
+      // Usar el endpoint que sabemos que existe: GET /api/users
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/users'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
+
+      print('   - Status: ${response.statusCode}');
+      return response.statusCode == 200;
+    } catch (e) {
+      print('   - Error: $e');
+      return false;
+    }
   }
 }

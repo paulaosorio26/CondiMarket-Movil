@@ -1,11 +1,14 @@
 // screens/detalle_producto_screen.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // <-- Importación clave
 import '../models/product_model.dart';
+import '../services/cart_service.dart';  // <-- Importación de CartService
+
 
 class DetalleProductoScreen extends StatefulWidget {
   final Producto producto;
 
-  const DetalleProductoScreen({Key? key, required this.producto}) : super(key: key);
+  const DetalleProductoScreen({super.key, required this.producto});
 
   @override
   _DetalleProductoScreenState createState() => _DetalleProductoScreenState();
@@ -220,7 +223,9 @@ class _DetalleProductoScreenState extends State<DetalleProductoScreen> {
                         ),
                       ),
                       onPressed: () {
-                        // Lógica para añadir al carrito
+                        final cartService = Provider.of<CartService>(context, listen: false);
+                        cartService.addItem(widget.producto, cantidad);
+
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('Añadido al carrito: ${widget.producto.nombre} x$cantidad'),

@@ -4,9 +4,12 @@ import 'package:provider/provider.dart';
 import '../models/product_model.dart';
 import '../services/product_service.dart';
 import '../services/cart_service.dart';
-import 'detalle_producto_screen.dart';
+
+import '../screens/product_card.dart';
 
 class CatalogoScreen extends StatefulWidget {
+  const CatalogoScreen({super.key});
+
   @override
   _CatalogoScreenState createState() => _CatalogoScreenState();
 }
@@ -14,21 +17,69 @@ class CatalogoScreen extends StatefulWidget {
 class _CatalogoScreenState extends State<CatalogoScreen> {
   late Future<List<Producto>> productos;
   final ProductService _productService = ProductService();
+  final TextEditingController _searchController = TextEditingController();
+
   String selectedCategory = 'Todos';
+  String searchQuery = '';
   List<String> categorias = ['Todos', 'Naturales', 'Procesados', 'Dulces', 'Otros'];
+  List<String> _sugerencias = [];
 
   @override
   void initState() {
     super.initState();
-    _cargarProductos();
+    _cargarProductosFiltrados();
   }
 
-  void _cargarProductos() {
+  String _norm(String s) {
+    final t = s.trim().toLowerCase();
+    const ac = 'áéíóúüñ';
+    const an = 'aeiouun';
+    var out = t;
+    for (var i = 0; i < ac.length; i++) {
+      out = out.replaceAll(ac[i], an[i]);
+    }
+    return out;
+  }
+
+  void _cargarProductosFiltrados() {
     setState(() {
-      productos = _productService.obtenerProductos().catchError((error) {
-        print('Error al cargar productos del backend: $error');
-        return Producto.getMockProducts();
+      productos = _productService.fetchProducts().then((lista) {
+        return lista.where((producto) {
+          final catProd = _norm(producto.categoria);
+          final catSel = _norm(selectedCategory);
+          final coincideCategoria = selectedCategory == 'Todos' || catProd == catSel;
+          final coincideBusqueda = _norm(producto.nombre).contains(_norm(searchQuery));
+          return coincideCategoria && coincideBusqueda;
+        }).toList();
+      }).catchError((error) {
+        final mockList = Producto.getMockProducts();
+        return mockList.where((producto) {
+          final catProd = _norm(producto.categoria);
+          final catSel = _norm(selectedCategory);
+          final coincideCategoria = selectedCategory == 'Todos' || catProd == catSel;
+          final coincideBusqueda = _norm(producto.nombre).contains(_norm(searchQuery));
+          return coincideCategoria && coincideBusqueda;
+        }).toList();
       });
+    });
+  }
+
+  void _onSearchSubmitted(String value) {
+    setState(() {
+      searchQuery = value;
+      _sugerencias.clear(); // Oculta sugerencias al enviar
+      _cargarProductosFiltrados();
+    });
+  }
+
+  void _actualizarSugerencias(String value) async {
+    final productosLista = await _productService.fetchProducts();
+    setState(() {
+      _sugerencias = productosLista
+          .map((p) => p.nombre)
+          .where((nombre) => _norm(nombre).contains(_norm(value)))
+          .toSet()
+          .toList();
     });
   }
 
@@ -37,13 +88,7 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
     return Scaffold(
       backgroundColor: Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: Text(
-          'CondiMarket',
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        title: Text('CondiMarket', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         elevation: 0,
         actions: [
@@ -61,10 +106,7 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
                       top: 8,
                       child: Container(
                         padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(10)),
                         child: Text(
                           '${cartService.itemCount}',
                           style: const TextStyle(color: Colors.white, fontSize: 12),
@@ -82,21 +124,56 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
           Container(
             color: Colors.white,
             padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Buscar',
-                prefixIcon: Icon(Icons.search, color: Colors.grey),
-                filled: true,
-                fillColor: Color(0xFFEAEFF5),
-                contentPadding: EdgeInsets.symmetric(vertical: 0),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
+            child: Column(
+              children: [
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Buscar productos...',
+                    prefixIcon: Icon(Icons.search, color: Colors.grey),
+                    filled: true,
+                    fillColor: Color(0xFFEAEFF5),
+                    contentPadding: EdgeInsets.symmetric(vertical: 0),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onChanged: (value) {
+                    if (value.isEmpty) {
+                      setState(() {
+                        searchQuery = '';
+                        _sugerencias.clear();
+                        _cargarProductosFiltrados(); // 🔥 recargar productos sin filtro
+                      });
+                    } else {
+                      _actualizarSugerencias(value);
+                      setState(() {
+                        searchQuery = _norm(value);
+                      });
+                    }
+                  },
+                  onSubmitted: _onSearchSubmitted,
                 ),
-              ),
-              onSubmitted: (value) {
-                print('Buscando: $value');
-              },
+                if (_sugerencias.isNotEmpty)
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: 200),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: _sugerencias.length,
+                      itemBuilder: (context, index) {
+                        final s = _sugerencias[index];
+                        return ListTile(
+                          title: Text(s),
+                          onTap: () {
+                            _searchController.text = s;
+                            _onSearchSubmitted(s);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+              ],
             ),
           ),
           Container(
@@ -109,13 +186,7 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Categorías',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    Text('Categorías', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     Icon(Icons.arrow_forward_ios, size: 16),
                   ],
                 ),
@@ -157,6 +228,7 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
                           onTap: () {
                             setState(() {
                               selectedCategory = categoria;
+                              _cargarProductosFiltrados();
                             });
                           },
                           child: Container(
@@ -196,13 +268,7 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Productos populares',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  Text('Productos populares', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   SizedBox(height: 16),
                   Expanded(
                     child: FutureBuilder<List<Producto>>(
@@ -211,34 +277,9 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
                         if (snapshot.connectionState == ConnectionState.waiting) {
                           return Center(child: CircularProgressIndicator());
                         } else if (snapshot.hasError) {
-                          return Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text('Error al cargar productos'),
-                                SizedBox(height: 8),
-                                ElevatedButton(
-                                  onPressed: _cargarProductos,
-                                  child: Text('Reintentar'),
-                                ),
-                              ],
-                            ),
-                          );
+                          return Center(child: Text('Error al cargar productos'));
                         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                           return Center(child: Text('No hay productos disponibles'));
-                        }
-
-                        List<Producto> productosFiltrados = snapshot.data!
-                            .where((producto) =>
-                        selectedCategory == 'Todos' ||
-                            producto.categoria.toLowerCase() ==
-                                selectedCategory.toLowerCase())
-                            .toList();
-
-                        if (productosFiltrados.isEmpty) {
-                          return Center(
-                            child: Text('No hay productos en esta categoría'),
-                          );
                         }
 
                         return GridView.builder(
@@ -248,9 +289,9 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
                             mainAxisSpacing: 16.0,
                             childAspectRatio: 0.8,
                           ),
-                          itemCount: productosFiltrados.length,
+                          itemCount: snapshot.data!.length,
                           itemBuilder: (context, index) {
-                            return ProductoCard(producto: productosFiltrados[index]);
+                            return ProductCard(producto: snapshot.data![index]);
                           },
                         );
                       },
@@ -271,105 +312,11 @@ class _CatalogoScreenState extends State<CatalogoScreen> {
             FloatingActionButton(
               onPressed: () => Navigator.pushNamed(context, '/cart'),
               backgroundColor: Colors.orange,
-              child: Icon(Icons.shopping_cart),
               elevation: 2,
+              child: Icon(Icons.shopping_cart),
             ),
             IconButton(icon: Icon(Icons.favorite_border, color: Colors.grey), onPressed: () {}),
             IconButton(icon: Icon(Icons.person_outline, color: Colors.grey), onPressed: () {}),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class ProductoCard extends StatelessWidget {
-  final Producto producto;
-
-  const ProductoCard({Key? key, required this.producto}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => DetalleProductoScreen(producto: producto),
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 5,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-                child: Image.network(
-                  producto.imagenUrl,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[200],
-                      child: Center(
-                        child: Icon(Icons.image_not_supported, color: Colors.grey),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    producto.nombre,
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    '\$${producto.precio.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                      fontSize: 12,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: () {
-                      final cartService = Provider.of<CartService>(context, listen: false);
-                      cartService.addProduct(producto);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('${producto.nombre} agregado al carrito')),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      minimumSize: Size(double.infinity, 36),
-                    ),
-                    child: const Text('Agregar al carrito'),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),

@@ -4,7 +4,7 @@ import '../services/cart_service.dart';
 import '../models/cart_item.dart';
 
 class CartScreen extends StatelessWidget {
-  const CartScreen({Key? key}) : super(key: key);
+  const CartScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -72,13 +72,66 @@ class CartScreen extends StatelessWidget {
           return Column(
             children: [
               Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: cartService.items.length,
-                  itemBuilder: (context, index) {
-                    final cartItem = cartService.items[index];
-                    return _CartItemWidget(cartItem: cartItem);
-                  },
+                child: RefreshIndicator(
+                  onRefresh: () async => await cartService.loadCart(),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: cartService.items.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final cartItem = cartService.items[index];
+                      return Dismissible(
+                        key: Key(cartItem.product.id.toString()),
+                        background: Container(
+                          color: Colors.red,
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          child: const Icon(Icons.delete, color: Colors.white),
+                        ),
+                        confirmDismiss: (direction) async {
+                          return await showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Eliminar producto'),
+                              content: Text('¿Estás seguro de eliminar ${cartItem.product.nombre} del carrito?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(context).pop(false),
+                                  child: const Text('Cancelar'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.of(context).pop(true),
+                                  child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                        onDismissed: (direction) {
+                          final removedItem = cartItem;
+                          final removedQuantity = cartItem.quantity;
+                          cartService.removeProduct(cartItem.product.id);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('${cartItem.product.nombre} eliminado'),
+                              action: SnackBarAction(
+                                label: 'Deshacer',
+                                onPressed: () {
+                                  cartService.addProduct(removedItem.product, quantity: removedQuantity);
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                        child: _CartItemWidget(
+                          cartItem: cartItem,
+                          onRemove: () => cartService.removeProduct(cartItem.product.id),
+                          onIncrement: () => cartService.incrementQuantity(cartItem.product.id),
+                          onDecrement: () => cartService.decrementQuantity(cartItem.product.id),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
               _CartSummary(),
@@ -92,15 +145,20 @@ class CartScreen extends StatelessWidget {
 
 class _CartItemWidget extends StatelessWidget {
   final CartItem cartItem;
+  final VoidCallback onRemove;
+  final VoidCallback onIncrement;
+  final VoidCallback onDecrement;
 
-  const _CartItemWidget({required this.cartItem});
+  const _CartItemWidget({
+    required this.cartItem,
+    required this.onRemove,
+    required this.onIncrement,
+    required this.onDecrement,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final cartService = Provider.of<CartService>(context, listen: false);
-
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -188,9 +246,7 @@ class _CartItemWidget extends StatelessWidget {
             children: [
               _QuantityButton(
                 icon: Icons.remove,
-                onPressed: () {
-                  cartService.decrementQuantity(cartItem.product.id);
-                },
+                onPressed: onDecrement,
               ),
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 12),
@@ -204,9 +260,7 @@ class _CartItemWidget extends StatelessWidget {
               ),
               _QuantityButton(
                 icon: Icons.add,
-                onPressed: () {
-                  cartService.incrementQuantity(cartItem.product.id);
-                },
+                onPressed: onIncrement,
               ),
             ],
           ),
@@ -389,7 +443,6 @@ class _CartSummary extends StatelessWidget {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                // Aquí implementarías la navegación a la pantalla de pago
                 final cartService = Provider.of<CartService>(context, listen: false);
                 Navigator.pushNamed(
                   context,
@@ -399,7 +452,6 @@ class _CartSummary extends StatelessWidget {
                     'cartItems': cartService.items,
                   },
                 );
-
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange[600],

@@ -3,7 +3,7 @@ import 'package:flutter/gestures.dart';
 import '../services/loginauth_service.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   _LoginScreenState createState() => _LoginScreenState();
@@ -21,13 +21,8 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('¡Bienvenido, ${userData['nombre']}!'),
+              Text('¡Bienvenido, ${userData['name']}!'),
               SizedBox(height: 8),
-              Text('ID: ${userData['id']}'),
-              Text('Email: ${userData['email']}'),
-              if (userData['telefono'] != null) Text('Teléfono: ${userData['telefono']}'),
-              if (userData['direccion'] != null) Text('Dirección: ${userData['direccion']}'),
-              Text('Rol: ${userData['rol']}'),
             ],
           ),
         ),
@@ -53,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String _errorMessage = '';
 
   // Instancia del servicio de autenticación (cambiar a true para usar datos quemados)
-  final loginAuthService = LoginAuthService(usarDatosMock: true);
+  final loginAuthService = LoginAuthService(usarDatosMock: false);
   @override
   void dispose() {
     _emailController.dispose();

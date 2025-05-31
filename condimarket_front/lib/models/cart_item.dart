@@ -9,10 +9,8 @@ class CartItem {
     this.quantity = 1,
   });
 
-  // Precio total del item (precio unitario * cantidad)
   double get totalPrice => product.precio * quantity;
 
-  // Método para crear desde JSON
   factory CartItem.fromJson(Map<String, dynamic> json) {
     return CartItem(
       product: Producto.fromJson(json['product']),
@@ -20,7 +18,6 @@ class CartItem {
     );
   }
 
-  // Método para convertir a JSON
   Map<String, dynamic> toJson() {
     return {
       'product': product.toJson(),

@@ -8,10 +8,10 @@ class PaymentScreen extends StatefulWidget {
   final List<dynamic> cartItems;
 
   const PaymentScreen({
-    Key? key,
+    super.key,
     required this.totalAmount,
     required this.cartItems,
-  }) : super(key: key);
+  });
 
   @override
   _PaymentScreenState createState() => _PaymentScreenState();
@@ -486,7 +486,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   Widget _buildFinishButton() {
-    return Container(
+    return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
         onPressed: _isProcessingPayment ? null : _processPayment,
