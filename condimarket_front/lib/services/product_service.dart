@@ -1,73 +1,64 @@
-// services/product_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/product_model.dart';
 
 class ProductService {
-  // URL base del backend
   final String baseUrl = 'https://condimarket-backend.onrender.com';
 
-  // Método para obtener la lista de productos desde el backend
-  Future<List<Producto>> obtenerProductos() async {
+  Future<List<Producto>> fetchProducts() async {
     try {
-      // Añadimos un timeout para que no espere indefinidamente
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/productos'),
-      ).timeout(Duration(seconds: 10));
+      final response = await http
+          .get(Uri.parse('$baseUrl/api/products'))
+          .timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200) {
-        // Decodifica la respuesta JSON y crea una lista de objetos Producto
-        List<dynamic> data = json.decode(response.body);
+        // decode con utf8 para evitar problemas con acentos o caracteres especiales
+        final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+
         return data.map((json) => Producto.fromJson(json)).toList();
       } else {
-        // Si la respuesta no es 200, imprimimos el código para depuración
-        print('Error en la respuesta: ${response.statusCode}');
-        print('Cuerpo de la respuesta: ${response.body}');
-        throw Exception('Error al cargar los productos: Código ${response.statusCode}');
+        print('Backend error: ${response.statusCode}');
+        print('Body: ${response.body}');
+        throw Exception('Error loading products');
       }
     } catch (e) {
-      // Captura cualquier error de red o formato y lo relanza
-      print('Error al conectar con el backend: $e');
-      throw Exception('Error al obtener productos: $e');
+      print('Backend failed: $e');
+      return Producto.getMockProducts();
     }
   }
 
-  // Método para obtener un producto específico por su ID
-  Future<Producto> obtenerProductoPorId(String id) async {
+  Future<Producto> fetchProductById(String id) async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/productos/$id'),
-      ).timeout(Duration(seconds: 10));
+      final response = await http
+          .get(Uri.parse('$baseUrl/api/productos/$id'))
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        // Decodifica la respuesta JSON y crea un objeto Producto
-        Map<String, dynamic> data = json.decode(response.body);
+        final Map<String, dynamic> data = json.decode(utf8.decode(response.bodyBytes));
         return Producto.fromJson(data);
       } else {
-        throw Exception('Error al cargar el producto: Código ${response.statusCode}');
+        throw Exception('Error loading product: ${response.statusCode}');
       }
     } catch (e) {
-      throw Exception('Error al obtener el producto: $e');
+      throw Exception('Error fetching product by ID: $e');
     }
   }
 
-  // Método para obtener las categorías disponibles
-  Future<List<String>> obtenerCategorias() async {
+  Future<List<String>> fetchCategories() async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/categorias'),
-      ).timeout(Duration(seconds: 10));
+      final response = await http
+          .get(Uri.parse('$baseUrl/api/categorias'))
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        // Decodifica la respuesta JSON
-        List<dynamic> data = json.decode(response.body);
-        return data.map((item) => item['nombre'].toString()).toList();
+        final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+        // Suponemos que la clave para el nombre de categoría es 'category'
+        return data.map((item) => item['category'].toString()).toList();
       } else {
-        throw Exception('Error al cargar categorías: Código ${response.statusCode}');
+        throw Exception('Error loading categories: ${response.statusCode}');
       }
     } catch (e) {
-      // Si hay un error, retornamos una lista vacía para que la app no se rompa
-      print('Error al obtener categorías: $e');
+      print('Error fetching categories: $e');
       return [];
     }
   }

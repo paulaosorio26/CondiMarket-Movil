@@ -1,12 +1,17 @@
-// main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
+// Servicios
+import 'services/cart_service.dart';
+import 'services/payment_service.dart';
 
 // Pantallas
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/catalogo_screen.dart';
+import 'screens/cart_screen.dart';
+import 'screens/payment_screen.dart'; // Nueva pantalla de pago
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,7 +21,6 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-
 
   // Barra de estado transparente con iconos oscuros
   SystemChrome.setSystemUIOverlayStyle(
@@ -85,20 +89,41 @@ class MyApp extends StatelessWidget {
       ),
     );
 
-    return MaterialApp(
-      title: 'CondiMarket',
-      debugShowCheckedModeBanner: false,
-      theme: baseTheme,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CartService()),
+        Provider(create: (_) => PaymentService()),
+      ],
+      child: MaterialApp(
+        title: 'CondiMarket',
+        debugShowCheckedModeBanner: false,
+        theme: baseTheme,
+        initialRoute: '/register',
+        onGenerateRoute: (settings) {
+          if (settings.name == '/payment') {
+            final args = settings.arguments as Map<String, dynamic>;
+            return MaterialPageRoute(
+              builder: (_) => PaymentScreen(
+                totalAmount: args['totalAmount'],
+                cartItems: args['cartItems'],
+              ),
+            );
+          }
 
-      // Ruta inicial
-      initialRoute: '/register',
-
-      // Rutas
-      routes: {
-        '/register': (_)  => const RegisterScreen(),
-        '/login': (_)     => const LoginScreen(),
-        '/catalogo': (_)  => CatalogoScreen(),
-      },
+          switch (settings.name) {
+            case '/register':
+              return MaterialPageRoute(builder: (_) => const RegisterScreen());
+            case '/login':
+              return MaterialPageRoute(builder: (_) => const LoginScreen());
+            case '/catalogo':
+              return MaterialPageRoute(builder: (_) => CatalogoScreen());
+            case '/cart':
+              return MaterialPageRoute(builder: (_) => const CartScreen());
+            default:
+              return MaterialPageRoute(builder: (_) => const RegisterScreen());
+          }
+        },
+      ),
     );
   }
 }

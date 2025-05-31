@@ -4,7 +4,7 @@ import 'package:flutter/gestures.dart';
 import '../services/registerauth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({Key? key}) : super(key: key);
+  const RegisterScreen({super.key});
 
   @override
   _RegisterScreenState createState() => _RegisterScreenState();
@@ -16,8 +16,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _telefonoController = TextEditingController();
-  final _direccionController = TextEditingController();
+//final _telefonoController = TextEditingController();
+//final _direccionController = TextEditingController();
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -26,7 +26,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _aceptaTerminos = false;
 
   // Instancia del servicio de autenticación
-  final RegisterAuthService _RegisterAuthService = RegisterAuthService(usarDatosMock: true);
+  final RegisterAuthService _RegisterAuthService = RegisterAuthService(usarDatosMock: false);
 
   @override
   void dispose() {
@@ -34,8 +34,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _telefonoController.dispose();
-    _direccionController.dispose();
+    //_telefonoController.dispose();
+    //_direccionController.dispose();
     super.dispose();
   }
 
@@ -50,13 +50,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('¡Bienvenido, ${userData['nombre']}!'),
+              Text('¡Bienvenido, ${userData['name']}!'),
               SizedBox(height: 8),
               Text('ID: ${userData['id']}'),
               Text('Email: ${userData['email']}'),
               if (userData['telefono'] != null) Text('Teléfono: ${userData['telefono']}'),
               if (userData['direccion'] != null) Text('Dirección: ${userData['direccion']}'),
-              Text('Rol: ${userData['rol']}'),
             ],
           ),
         ),
@@ -73,23 +72,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Método para validar el formulario y registrar al usuario
+// Método para validar el formulario y registrar al usuario (con debug completo)
   Future<void> _register() async {
+    print('🚀 === INICIO DEL PROCESO DE REGISTRO ===');
+
     // Quitar el foco para cerrar el teclado
     FocusScope.of(context).unfocus();
 
     // Validar el formulario
     if (!_formKey.currentState!.validate()) {
+      print('❌ Formulario no válido');
       return;
     }
 
     // Verificar que haya aceptado los términos y condiciones
     if (!_aceptaTerminos) {
+      print('❌ Términos y condiciones no aceptados');
       setState(() {
         _errorMessage = 'Debes aceptar los términos y condiciones para continuar';
       });
       return;
     }
+
+    print('✅ Validaciones pasadas, iniciando registro...');
 
     setState(() {
       _isLoading = true;
@@ -97,38 +102,73 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
+      // Verificar primero la conexión (opcional)
+      final tieneConexion = await _RegisterAuthService.verificarConexionBackend();
+      print('🌐 Conexión con backend: ${tieneConexion ? "OK" : "FALLO"}');
+
       final result = await _RegisterAuthService.registrarUsuario(
         nombre: _nombreController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        telefono: _telefonoController.text.trim(),
-        direccion: _direccionController.text.trim(),
       );
 
+      print('📋 Resultado completo del registro: $result');
+
       if (result['success']) {
-        // Registro exitoso
+        print('🎉 ¡REGISTRO EXITOSO!');
+        print('   - Usuario: ${result['user']}');
+
+        // Verificar que se guardó localmente
+        final usuarioGuardado = await _RegisterAuthService.cargarUsuario();
+        print('💾 Usuario en SharedPreferences: $usuarioGuardado');
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Registro exitoso'),
+            content: Text('Registro exitoso - ${result['message']}'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
           ),
         );
 
         // Mostrar los datos del usuario registrado
         _mostrarInformacionUsuario(result['user']);
       } else {
+        print('❌ REGISTRO FALLIDO');
+        print('   - Mensaje: ${result['message']}');
+
         setState(() {
-          _errorMessage = result['message'];
+          _errorMessage = result['message'] ?? 'Error desconocido en el registro';
         });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${result['message']}'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+          ),
+        );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('💥 EXCEPCIÓN EN EL REGISTRO');
+      print('   - Error: $e');
+      print('   - Stack trace: $stackTrace');
+
       setState(() {
         _errorMessage = 'Error de conexión. Intente nuevamente.';
       });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error de conexión: $e'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
+      );
     } finally {
       setState(() {
         _isLoading = false;
       });
+      print('🏁 === FIN DEL PROCESO DE REGISTRO ===');
     }
   }
 
@@ -238,7 +278,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                     // Campo de teléfono (opcional)
                     TextFormField(
-                      controller: _telefonoController,
+//                      controller: _telefonoController,
                       keyboardType: TextInputType.phone,
                       decoration: InputDecoration(
                         labelText: 'Teléfono (opcional)',
@@ -255,7 +295,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                     // Campo de dirección (opcional)
                     TextFormField(
-                      controller: _direccionController,
+//                      controller: _direccionController,
                       keyboardType: TextInputType.streetAddress,
                       decoration: InputDecoration(
                         labelText: 'Dirección (opcional)',
@@ -445,6 +485,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
+          const SizedBox(height: 16),
+          Center(
+            child: RichText(
+              text: TextSpan(
+                text: '¿Ya tienes una cuenta? ',
+                style: TextStyle(color: Colors.black87),
+                children: [
+                  TextSpan(
+                    text: 'Inicia sesión',
+                    style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () {
+                        Navigator.pushReplacementNamed(context, '/login');
+                      },
+                  ),
+                ],
+              ),
+            ),
+          ),
                   ],
                 ),
               ),
